@@ -1,180 +1,144 @@
 # BTC/USDT Trading Patterns
 
-Research for option B of the 21Shares take-home project: identify trading patterns in Binance spot BTC/USDT one-second candles from January 2023.
+This is my submission for **Option B** of the 21Shares take-home: find trading patterns in BTC/USDT 1-second candles from January 2023 onwards.
 
-The pipeline downloads public API data, stores daily Parquet files, checks data quality and studies activity, volatility and return relationships. The sample ends on **5 November 2026**, with `2026-11-06T00:00:00Z` as the exclusive endpoint.
+I used Binance Spot data from **1 January 2023 to 5 November 2026** (end exclusive: `2026-11-06T00:00:00Z`). The project covers downloading the data, checking it, and analysing trading activity, volatility and short-term price movements.
 
-- [Presentation](presentation/BTC-21shares.pdf)
-- [Analysis tables](results/analysis/tables) and [figures](results/analysis/figures)
-- [Descriptive tables](results/eda/tables) and [figures](results/eda/figures)
-- [Quality results](results/quality/quality.json)
-- [Data dictionary](docs/DATA_DICTIONARY.md)
+**Start here:** [Presentation](presentation/BTC-21shares.pdf) · [Research charts](results/analysis/figures) · [Research tables](results/analysis/tables) · [Quality report](results/quality/quality.json) · [Data dictionary](docs/DATA_DICTIONARY.md)
 
-## Main findings
+## What I found
 
-| Finding | Full-sample result |
+A few results stood out in the full sample:
+
+| Pattern | Result |
 |---|---|
-| Intraday concentration | 14:00-16:00 UTC averages 13.91% of daily BTC volume and 16.66% of daily variance |
-| Regional overlap | London-New York overlap turnover and variance per minute average 1.60 and 1.89 times their own day's average |
-| Weekend effect | Median within-week weekend/weekday ratios: 0.463 for BTC volume and 0.548 for daily realised volatility |
-| Volatility persistence | One-minute absolute-return lag-one correlation: 0.383; signed-return correlation is close to zero |
-| Trade imbalance | Correlation with same-minute returns: 0.421; with next-minute returns: 0.0125 |
+| Busy hours | 14:00–16:00 UTC accounts for 13.91% of daily BTC volume and 16.66% of daily realised variance on average. |
+| London–New York overlap | Turnover and variance per minute are 1.60× and 1.89× their respective daily averages. |
+| Weekends | Median within-week weekend/weekday ratios are 0.463 for BTC volume and 0.548 for daily realised volatility. |
+| Volatility clustering | The lag-1 correlation of absolute 1-minute returns is 0.383, while signed-return correlation is near zero. |
+| Taker imbalance | Correlation with same-minute returns is 0.421, but only 0.0125 with next-minute returns. |
 
-Overlap activity, absolute-return persistence and lower regional weekend turnover receive support across all three chronological periods under both block-length settings. The next-minute imbalance association does not pass the longer-block adjusted test in 2026. Simple return forecasts show no robust MSE improvement in that period.
+The overlap effect, absolute-return persistence and lower weekend turnover within regional windows hold up across the three chronological periods under both block-length checks. Short-horizon forecasting is much less convincing: the next-minute imbalance relationship fails the longer-block adjusted test in 2026, and the simple return models do not show a robust MSE improvement in that period.
 
-The final period is **retrospective**: the 2026 data was inspected before the validation design was finalised. These results describe market patterns and limited forecasting evidence; they do not establish trading profitability or causality.
+![Pattern comparisons across periods](results/analysis/figures/14_pattern_stability.png)
 
-![Chronological pattern comparisons](results/analysis/figures/14_pattern_stability.png)
+These are **observed patterns, not trading signals or claims of profitability**. The 2026 period is a *retrospective* test because I had already inspected some of its data before fixing the validation design.
 
-## Repository structure
+## How the code works
 
-| Path | Responsibility |
+The pipeline is deliberately split into a few small parts:
+
+| File | What it does |
 |---|---|
-| `run.py` | Configuration, command-line entry and task selection |
-| `download.py` | Public API requests, pagination, raw cache, daily Parquet and download recovery |
-| `quality.py` | File integrity, timestamp coverage and OHLCV checks |
-| `analysis.py` | Aggregation, pattern research, chronological validation and charts |
-| `scripts/eda.py` | Descriptive charts from the existing full-run summary tables |
-| `tests/test_run.py` | Offline tests for downloads, quality checks and analysis calculations |
-| `configs/` | One-day demo and full-sample configuration |
-| `results/` | Saved quality checks, aggregate tables and research figures |
-| `presentation/` | Final presentation |
+| `run.py` | CLI, config and task selection |
+| `download.py` | Fetches API pages, caches responses, writes daily Parquet files and resumes interrupted downloads |
+| `quality.py` | Checks files, timestamps and OHLCV consistency |
+| `analysis.py` | Builds aggregates, runs the pattern analysis and validation, and produces charts |
+| `scripts/eda.py` | Builds additional descriptive charts from saved analysis tables |
+| `tests/test_run.py` | Offline tests for downloads, checks and calculations |
 
-Raw data, the virtual environment, logs and generated working outputs are excluded from Git. `results/` contains the saved full-run outputs; commands write new outputs to `reports/`.
+The raw responses are cached before conversion. Data is processed **one day at a time**, saved as Zstd-compressed Parquet, and read back as needed. This keeps memory usage manageable without loading years of second-level data at once. Each daily partition has a receipt recording its source, time range and SHA-256 hash.
 
-## Setup and commands
+The repository includes saved outputs in `results/`. Raw downloads, caches, virtual environments, logs and working files are not committed. New runs write to `reports/`.
 
-Use Python 3.9-3.12. The project was tested on Windows with Python 3.9.21.
+## Run it
+
+Tested on Windows using **Python 3.9.21**; supported Python versions are 3.9–3.12.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 ```
 
-Activate the environment before running the following commands, or use its full Python path. On macOS/Linux, the interpreter is `.venv/bin/python`.
+Activate the environment, or use its Python executable for the commands below (`.venv/bin/python` on macOS/Linux).
 
 ```powershell
-# Inspect the one-day request plan without making API calls.
+# See what the one-day demo would request (no API calls)
 python run.py --config configs/demo.json plan
 
-# Download and check the one-day sample.
+# Download and check one day
 python run.py --config configs/demo.json run
 
-# Download and check the full sample.
+# Run the complete download and checks
 python run.py --config configs/full.json run
 
-# Recheck existing files without downloading.
+# Check files already on disk
 python run.py --config configs/full.json check
 
-# Run research after the quality checks pass.
+# Run the research
 python analysis.py --config configs/full.json
 
-# Rebuild descriptive charts from the full analysis tables.
+# Make the extra descriptive charts
 python scripts/eda.py
 
-# Run the offline tests.
+# Offline tests
 python -m pytest -q
 ```
 
-`run` performs `fetch` followed by `check`. `fetch` can also run separately. Repeating the command resumes cached pages and reuses completed partitions whose hashes match their receipts. Override dates and directories with `--start`, `--end`, `--data-dir` and `--report-dir`. Analysis also accepts `--output-dir`.
+`run` means `fetch` followed by `check`; `fetch` also works on its own. Downloads can resume from cached pages, and completed partitions are reused when their hashes match. Date and path overrides are available with `--start`, `--end`, `--data-dir` and `--report-dir`; analysis also supports `--output-dir`.
 
-The full range needs at least 122,235 API requests. Default pacing alone takes about 8.49 hours, before latency, retries and processing. A one-day demo checks the setup but cannot establish multi-year patterns.
+The full period requires **at least 122,235 API requests**. At the default pacing, that is roughly **8.49 hours before network latency, retries and processing**. Try `configs/demo.json` first. It tests the pipeline, but a single day cannot reproduce the multi-year findings.
 
-To rebuild only the descriptive charts from committed results, copy `results/analysis/tables/` to `reports/full/analysis/tables/`, then run `python scripts/eda.py`. This script uses the fixed full-sample dates shown in the presentation.
+To rebuild only the descriptive figures from committed results, copy `results/analysis/tables/` to `reports/full/analysis/tables/` and run `python scripts/eda.py`.
 
-## Data source and quality
+## Data checks
 
-The source is Binance spot `/api/v3/klines`, symbol `BTCUSDT`, interval `1s`, through `https://data-api.binance.vision`. No API key is required. Windows use UTC `[start, end)` boundaries. REST timestamps are parsed as milliseconds. The downloader does not ingest historical ZIP files, whose timestamp convention changed in 2025.
+Source: Binance Spot [`/api/v3/klines`](https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md), `BTCUSDT`, `1s`, using `https://data-api.binance.vision` without an API key. Requests use UTC `[start, end)` windows. **REST timestamps are milliseconds**; I convert them to UTC and store timestamps at microsecond precision. The downloader does not import Binance historical ZIP files, which have a different timestamp convention from 2025 onwards.
 
-One day of seconds is processed at a time. Compressed raw responses are cached before conversion. Daily Parquet receipts record the source, window and SHA-256 hash. Checks cover integrity, schema, duplicate/off-grid/out-of-order timestamps, missing seconds, null/non-finite values, price and volume bounds, OHLC ordering, close times and taker-volume consistency.
+The checker looks for bad file hashes, missing/duplicate/off-grid/out-of-order timestamps, invalid or inconsistent prices and volumes, bad OHLC ordering, incorrect close times and taker-volume inconsistencies. Zero-volume candles are kept; they are not treated as missing data.
 
-| Coverage metric | Full sample |
+| Full-run check | Result |
 |---|---:|
-| Trusted daily partitions | 1,405 |
-| Expected seconds | 121,392,000 |
-| Observed seconds | 121,387,182 |
-| Actual coverage | 99.996031% |
-| Known missing seconds | 4,818 |
+| Daily partitions | 1,405 |
+| Expected / observed seconds | 121,392,000 / 121,387,182 |
+| Timestamp coverage | 99.996031% |
+| Missing seconds | 4,818, all within the known gap |
 | Unexpected missing seconds | 0 |
-| Observed zero-volume seconds | 8,833,704 |
-| Complete analysis days | 1,404 |
-| Complete comparison weeks | 199 |
+| Zero-volume seconds observed | 8,833,704 |
+| Complete analysis days / comparison weeks | 1,404 / 199 |
 
-The saved audit has status `WARNING`. All row checks and file-integrity checks pass.
+The final audit is **`WARNING` rather than `PASS`** because of one known gap: `2023-03-24 12:39:42 UTC` to `14:00:00 UTC` (4,818 seconds). The jump is present in a cached REST response, a repeated request and the official daily archive. Binance reported a [spot trading halt](https://www.binance.com/en/blog/from-our-ceo/6789340645608890113) and a [14:00 UTC recovery](https://www.binance.com/en/support/announcement/detail/813a31506e9f478ea8c1058b425df87a).
 
-### Known source gap
+There are also 4,338 recorded zero-trade/zero-volume candles from 11:27:24 to 12:39:41 UTC, before the missing interval. The published incident information does not explain the difference. The [official daily ZIP](https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1s/BTCUSDT-1s-2023-03-24.zip) (checked against its [checksum](https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1s/BTCUSDT-1s-2023-03-24.zip.CHECKSUM)) contains the same unique timestamps, plus 36 identical duplicate rows. I kept the REST dataset as the source of record.
 
-The accepted gap is exactly **`[2023-03-24T12:39:42Z, 2023-03-24T14:00:00Z)`**, or 4,818 seconds. The original cached response contains the timestamp jump within a single page. A repeated API request and the official daily archive showed the same missing interval.
+The known gap is explicitly allowed as a warning, not filled in. Any other missing timestamps, invalid data or untrusted partitions cause a `FAIL`. Returns do not cross gaps, and analysis stops on `FAIL`.
 
-Binance's [incident explanation](https://www.binance.com/en/blog/from-our-ceo/6789340645608890113) describes the spot trading halt; its [recovery announcement](https://www.binance.com/en/support/announcement/detail/813a31506e9f478ea8c1058b425df87a) gives 14:00 UTC as the resumption time. The candle gap starts later: 4,338 zero-volume, zero-trade candles remain from 11:27:24 through 12:39:41. The source does not explain this difference.
+## Analysis and validation
 
-The [daily ZIP](https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1s/BTCUSDT-1s-2023-03-24.zip), verified against its [checksum](https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1s/BTCUSDT-1s-2023-03-24.zip.CHECKSUM), has the same unique timestamps and 36 additional identical duplicate rows. The project retains its REST dataset.
+I use log returns and realised volatility calculated from adjacent seconds. Daily realised volatility is `100 * sqrt(sum(second_log_return ** 2))`, without annualisation. Minute-level returns need two complete adjacent minutes.
 
-| Status | Rule |
+For activity patterns, I normalise within each complete UTC day before averaging, so a handful of high-volume days do not dominate the intraday profile. Weekend comparisons use complete Monday–Sunday weeks. Hong Kong, London and New York windows are defined as **09:00–17:00 local time**, including historical daylight-saving rules where applicable. These are *time windows*, **not the actual locations of traders**, and some windows overlap.
+
+For the short-horizon work, I compare signed- and absolute-return autocorrelation and use taker imbalance:
+
+`imbalance = 2 * taker_buy_quote_volume / quote_volume - 1`
+
+Imbalance is undefined when quote volume is zero. I keep its **same-minute association** separate from any relationship with **future** returns. Full-day normalisation and full-sample extreme-day thresholds are descriptive only, not inputs to forecasts.
+
+The forecast exercise is small by design:
+
+| Period | Role |
 |---|---|
-| `PASS` | Complete requested coverage and no file or row errors |
-| `WARNING` | Missing seconds are confined to the documented interval; all other checks pass |
-| `FAIL` | Any other missing seconds, row violation, missing file or untrusted file |
+| 2023–2024 | Fit feature scaling and linear-model parameters |
+| 2025 | Choose a model for each horizon using MSE |
+| 2026 through 5 November | Retrospective evaluation with the selected training parameters frozen |
 
-The exception never excuses a corrupt or missing partition. Actual coverage remains unchanged. Observed zero-volume records are retained, missing seconds stay missing, and returns never cross a gap. Analysis stops on `FAIL` and handles the known `WARNING` explicitly.
+I test **1-, 5- and 15-minute horizons**, comparing a training-mean baseline, a return-only linear model and an imbalance-only linear model. Signals use completed minutes, and targets cannot cross gaps or period boundaries. The reported improvement is `100 * (1 - model_MSE / baseline_MSE)`; it is **not a trading P&L**.
 
-## Research methods
+Since adjacent forward-return labels overlap, I do not treat each minute as an independent observation. Inference uses circular calendar-block bootstrap with **7/28-day blocks** for daily statistics and **4/8-week blocks** for weekly statistics, **1,999 draws**, seed **42**. The checks use basic bootstrap intervals and approximate centred two-sided p-values; Holm correction is applied across **39 planned checks** per stage and block setting. A finding counts as supported only if the adjusted p-value is below 0.05 and the effect direction agrees under both block lengths. Detailed outputs are in `results/analysis/tables/`, including `inference.csv` (234 checks across stages/settings), `feature_audit.csv`, `forecast_scores.csv` and `forecast_models.csv`.
 
-- **Returns and volatility:** one-second log returns require adjacent timestamps. Daily realised volatility is `100 * sqrt(sum(r_second ** 2))`, without annualisation. Minute returns require two complete adjacent minutes. The first unavailable return is excluded.
-- **Intraday seasonality:** normalise each complete UTC day separately, then average hourly volume and variance shares with equal day weights. The halt date is excluded.
-- **Regional windows:** Hong Kong, London and New York use local 09:00-17:00 with historical timezone and DST rules. Regional windows can overlap; exclusive buckets partition the day. Intensity divides activity per minute by its own day's average per minute, then averages across days. Labels identify time windows rather than trader locations. DST profiles compare different seasonal samples and do not identify a causal effect.
-- **Weekend effect:** within a complete Monday-Sunday week, compare weekend and weekday daily averages. Session comparisons use per-minute rates and require the bucket to exist on all seven days.
-- **Autocorrelation:** signed returns measure direction persistence; absolute returns measure movement-size persistence. Minute pairs stay within continuous blocks. Second-level pairs stay within a UTC day.
-- **Trade imbalance:** `2 * taker_buy_quote_volume / quote_volume - 1`. Zero-turnover minutes have undefined imbalance. Same-minute association is reported separately from forward association.
-- **Descriptive checks:** monthly heatmaps, complete-day distributions and same-day turnover/RV scatter plots describe the data. Extreme-day sensitivity excludes dates above the full-sample 99th percentile of daily RV; this threshold is used only for descriptive comparisons.
+## Outputs and practical notes
 
-The main analysis holds one day's seconds at a time and retains minute aggregates in memory. It writes 22 CSV tables, 14 PNG figures and a completion summary. The descriptive script adds three CSV tables and five PNG figures. Monthly/yearly tables report actual coverage: 2026 is partial and November contains five days.
+- `results/quality/`: audit, per-day checks and missing intervals
+- `results/analysis/tables/`: hourly activity, regional windows, weekend ratios, correlations, forecasts and validation
+- `results/analysis/figures/`: the main research charts
+- `results/analysis/summary.json`: run details, coverage and analysis settings
+- `results/eda/`: distributions, heatmaps, volatility calendar and other descriptive plots
 
-## Chronological validation
+The main analysis produces **22 CSV tables and 14 figures**; EDA adds **3 CSV tables and 5 figures**. Yearly/monthly results use actual data coverage: **2026 is partial**, and November contains only five days.
 
-| Stage | Period | Use |
-|---|---|---|
-| Training | 2023-2024 | Fit feature scales, intercepts and slopes |
-| Validation | 2025 | Select the lowest-MSE candidate for each horizon |
-| Retrospective test | 2026 to the data endpoint | Evaluate the selected forecast with frozen training parameters |
+If a download is interrupted, rerun the same command. If a hard kill leaves `data/<run>/.writer.lock`, make sure its PID is no longer running before deleting the lock. A hash mismatch stops the process; keep the affected file for inspection and rebuild from trusted cached pages. Exit codes are `0` (success or accepted warning), `1` (runtime/config issue), `2` (quality failure or invalid CLI), and `130` (interrupted).
 
-Forecast horizons are 1, 5 and 15 minutes. Candidates are the training-mean baseline, a return-only linear model and an imbalance-only linear model. All candidates use the same valid feature-target rows. Features come from completed minutes; targets cannot extend past their stage boundary or across a gap. Full-day normalisation and full-sample thresholds are excluded from forecast inputs.
+**Limits:** This is one exchange's trade data, not a global BTC tape. Candles do not show order-book depth, spread, trader location or the ordering of individual trades within a second. The persistence estimates do not fully remove intraday seasonality. I have not implemented forward volume-to-volatility forecasts or post-event recovery analysis. A genuinely untouched test would require freezing the method **before** collecting new observations.
 
-Forecast improvement is `100 * (1 - model MSE / baseline MSE)` percent. It measures prediction error improvement, not a trading return. Training and validation inference is exploratory because those periods are used for fitting and selection.
-
-### Dependence and multiple comparisons
-
-Daily sufficient statistics preserve paired observations and overlapping targets. Inference resamples contiguous calendar blocks within each stage, retaining missing units in their calendar positions.
-
-| Setting | Value |
-|---|---|
-| Daily block lengths | 7 and 28 days |
-| Weekly block lengths | 4 and 8 weeks |
-| Bootstrap | Circular blocks; 1,999 draws; seed 42 |
-| Intervals and p-values | Basic bootstrap intervals; approximate centred two-sided p-values with plus-one correction |
-| Minimum support | At least four block lengths of usable units and 95% valid draws |
-| Adjustment | Holm across 39 planned checks within each stage and block setting |
-
-The family contains 20 correlation checks, eight regional/overlap intensity checks, eight weekend checks and three selected-forecast checks. Undefined checks retain their place in the family. The saved `inference.csv` contains 234 rows: 39 checks across three stages and two block settings. An `ok` status means the calculation was valid. Statistical support additionally requires adjusted p-values below 0.05 with consistent effect direction under both block settings.
-
-## Saved outputs
-
-| Location | Contents |
-|---|---|
-| `results/quality/` | Overall audit, daily checks and missing intervals |
-| `results/analysis/tables/` | Activity, hourly shares, weekend ratios, correlations, regional windows and validation |
-| `results/analysis/figures/` | Research and validation charts |
-| `results/analysis/summary.json` | Run timestamp, source quality, usable counts and calculation settings |
-| `results/eda/` | Heatmaps, volatility calendar, distributions and same-day activity/volatility plots |
-
-`forecast_models.csv` records training parameters. `forecast_scores.csv` retains every candidate's scores and selection status. `feature_audit.csv` records information timing and target boundaries. `correlation_daily.csv` and `forecast_daily.csv` retain daily inputs to inference.
-
-## Recovery and limitations
-
-After interruption, rerun the same download command. If a hard kill leaves `data/<run>/.writer.lock`, check that its PID is no longer running before removing that file. A hash mismatch stops processing; preserve the file and rebuild from trusted cached pages.
-
-Exit codes: 0 for success or accepted `WARNING`, 1 for runtime/configuration errors, 2 for quality `FAIL` or invalid CLI syntax, and 130 for interruption.
-
-The data comes from one exchange and contains no order-book depth, spread, trader location or within-candle trade ordering. Float64 supports analysis; original decimal strings remain in raw caches. Intraday seasonality has not been fully removed from volatility-persistence estimates. Forward volume-to-volatility prediction and event recovery paths remain future research. An untouched evaluation requires freezing the method before collecting new data.
-
-Source documentation: [Binance REST API](https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md) and [public market-data endpoints](https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md). Source data remains subject to the provider's terms.
+For API details, see the [Binance REST documentation](https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md) and [public market-data FAQ](https://github.com/binance/binance-spot-api-docs/blob/master/faqs/market_data_only.md). Source data remains subject to the provider's terms.
