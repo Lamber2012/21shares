@@ -1,0 +1,13 @@
+{
+  "symbol": "BTCUSDT",
+  "interval": "1s",
+  "start": "2023-01-01T00:00:00Z",
+  "end": "2026-11-06T00:00:00Z",
+  "base_url": "https://data-api.binance.vision",
+  "data_dir": "data/full",
+  "report_dir": "reports/full",
+  "min_request_interval_seconds": 0.25,
+  "request_weight_budget_per_minute": 1000,
+  "timeout_seconds": 30,
+  "max_attempts": 5
+}

@@ -1,0 +1,13 @@
+{
+  "source": "Existing full analysis CSV tables",
+  "complete_days": 1404,
+  "figure_count": 5,
+  "table_count": 3,
+  "raw_data_changed": false,
+  "notes": [
+    "Descriptive summaries only; no new predictive claims.",
+    "Monthly zero-volume rates include all observed seconds.",
+    "Distributions, calendar RV and scatter use complete UTC days.",
+    "Missing future months remain blank; 2026 is partial."
+  ]
+}

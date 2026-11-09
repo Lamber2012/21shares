@@ -1,0 +1,6 @@
+# Tested baseline; Python 3.9-3.12. See README for an isolated environment.
+requests==2.32.3
+numpy==1.26.4
+pandas==2.2.3
+pyarrow==14.0.2
+matplotlib==3.9.2

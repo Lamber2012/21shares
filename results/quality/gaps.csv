@@ -1,0 +1,2 @@
+partition_date,start_utc,end_exclusive_utc,missing_seconds,status,reason
+2023-03-24,2023-03-24T12:39:42Z,2023-03-24T14:00:00Z,4818,WARNING,Documented Binance spot trading halt on 2023-03-24; original records remain missing.

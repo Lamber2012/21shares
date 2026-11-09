@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btc-market-data"
+version = "1.5.0"
+description = "BTC/USDT one-second data preparation and option B pattern analysis"
+readme = "README.md"
+requires-python = ">=3.9,<3.13"
+dependencies = [
+  "requests==2.32.3",
+  "numpy==1.26.4",
+  "pandas==2.2.3",
+  "pyarrow==14.0.2",
+  "matplotlib==3.9.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.3.4"]
+
+[project.scripts]
+btc-data = "run:main"
+
+[tool.setuptools]
+py-modules = ["run", "download", "quality", "analysis"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
