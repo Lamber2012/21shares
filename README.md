@@ -4,6 +4,8 @@ This is my submission for **Option B** of the 21Shares take-home: find trading p
 
 I used Binance Spot data from **1 January 2023 to 5 November 2026** (end exclusive: `2026-11-06T00:00:00Z`). The project covers downloading the data, checking it, and analysing trading activity, volatility and short-term price movements.
 
+AI use: Tests were primarily developed through prompting; other code was manually structured and AI-reviewed.
+
 **Start here:** [Presentation](presentation/BTC-21shares.pdf) · [Research charts](results/analysis/figures) · [Research tables](results/analysis/tables) · [Quality report](results/quality/quality.json) · [Data dictionary](docs/DATA_DICTIONARY.md)
 
 ## What I found
